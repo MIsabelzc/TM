@@ -5,4 +5,5 @@ numpy
 opencv-python-headless
 Pillow
 tensorflow==2.12
-pip install streamlit-drawable-canvas
+streamlit-drawable-canvas 
+matplotlib
