@@ -5,7 +5,7 @@ from PIL import Image
 from keras.models import load_model
 import paho.mqtt.client as mqtt
 import json
-from streamlit_drawable_canvas import st_canvas
+import platform
 
 # -------------------------------
 # CONFIGURACIÓN MQTT
@@ -14,7 +14,7 @@ broker = "broker.mqttdashboard.com"
 port = 1883
 topic = "santiagoV/cmqtt_a"
 
-client = mqtt.Client("streamlit_access")
+client = mqtt.Client("streamlit_face_access")
 client.connect(broker, port, 60)
 
 def enviar_mqtt(act, analog):
@@ -24,101 +24,113 @@ def enviar_mqtt(act, analog):
     print("📤 Enviado al broker:", message)
 
 # -------------------------------
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN DE INTERFAZ
 # -------------------------------
-st.set_page_config(page_title="Sistema de acceso inteligente", layout="centered")
+st.set_page_config(page_title="Acceso Facial Inteligente", layout="centered")
 
+# Fondo azul suave y estilo del texto
 st.markdown("""
     <style>
     body {
-        background-color: #002b4f;
+        background-color: #0a192f;
         color: white;
-        font-family: 'Helvetica', sans-serif;
+        font-family: 'Segoe UI', sans-serif;
     }
     .title {
         text-align: center;
-        color: #00c6ff;
-        font-size: 36px;
+        color: #64ffda;
+        font-size: 2.5em;
+        margin-top: 20px;
         margin-bottom: 10px;
+        font-weight: 700;
     }
     .subtitle {
         text-align: center;
-        font-size: 18px;
-        color: #9adfff;
-        margin-bottom: 30px;
+        color: #ccd6f6;
+        font-size: 1.1em;
+        margin-bottom: 40px;
     }
     .welcome {
         text-align: center;
-        color: #00ffcc;
-        font-size: 30px;
-        margin-top: 30px;
+        font-size: 2em;
+        color: #64ffda;
         font-weight: bold;
+        margin-top: 30px;
+    }
+    .subtext {
+        text-align: center;
+        font-size: 1.2em;
+        color: #a8b2d1;
+        margin-top: -10px;
+        margin-bottom: 30px;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# MODELO DE RECONOCIMIENTO FACIAL
+# ENCABEZADO
 # -------------------------------
-st.markdown("<div class='title'>Reconocimiento Facial</div>", unsafe_allow_html=True)
+st.markdown("<div class='title'>🔒 Sistema de Acceso Facial</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Reconocimiento de rostro con control IoT</div>", unsafe_allow_html=True)
+
+# -------------------------------
+# CARGA DEL MODELO
+# -------------------------------
 model = load_model('keras_model.h5')
 data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
-img_file_buffer = st.camera_input("📸 Toma una foto para ingresar")
+# -------------------------------
+# CAPTURA DE ROSTRO
+# -------------------------------
+st.subheader("📷 Escanear Rostro")
+img_file_buffer = st.camera_input("Usa la cámara para validar tu identidad")
 
 if img_file_buffer is not None:
-    img = Image.open(img_file_buffer).resize((224, 224))
+    img = Image.open(img_file_buffer)
+    img = img.resize((224, 224))
     img_array = np.array(img)
     normalized_image_array = (img_array.astype(np.float32) / 127.0) - 1
     data[0] = normalized_image_array
 
     prediction = model.predict(data)
-    if prediction[0][0] > 0.7:
-        st.markdown("<div class='welcome'>Bienvenida Isabel 👩<br>Ya puedes pasar</div>", unsafe_allow_html=True)
+    prob_isabel = float(prediction[0][0])
+    prob_santiago = float(prediction[0][1])
+    prob_desconocido = float(prediction[0][2])
+
+    if prob_santiago > 0.7:
+        st.markdown("<div class='welcome'>👋 Bienvenido Santiago</div>", unsafe_allow_html=True)
+        st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
         enviar_mqtt("ON", 100)
-    elif prediction[0][1] > 0.7:
-        st.markdown("<div class='welcome'>Bienvenido Santiago 👨<br>Ya puedes pasar</div>", unsafe_allow_html=True)
-        enviar_mqtt("ON", 100)
+    elif prob_isabel > 0.7:
+        st.markdown("<div class='welcome'>👋 Bienvenida Isabel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
+        enviar_mqtt("ON", 50)
     else:
-        st.markdown("<div class='welcome' style='color:#ff6666;'>No reconocido ❌<br>Intenta de nuevo</div>", unsafe_allow_html=True)
+        st.markdown("<div class='welcome' style='color:#ff6b6b;'>🚫 No reconocido</div>", unsafe_allow_html=True)
+        st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
         enviar_mqtt("OFF", 0)
 
+# -------------------------------
+# ESPACIO PARA ENTRADA MANUAL (futura cédula)
+# -------------------------------
 st.markdown("---")
-
-# -------------------------------
-# APARTADO DE ACCESO POR CÉDULA
-# -------------------------------
-st.markdown("<div class='title'>Acceso Alternativo por Cédula</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>También puedes ingresar escribiendo tu número de cédula de forma táctil.</div>", unsafe_allow_html=True)
-
-# 🎨 Canvas táctil (para dibujar números de cédula)
-canvas_result = st_canvas(
-    fill_color="rgba(255,255,255,0)",
-    stroke_width=4,  # línea más delgada
-    stroke_color="#FFFFFF",
-    background_color="#003764",
-    height=200,
-    width=300,
-    drawing_mode="freedraw",
-    key="canvas_cedula",
+st.subheader("🖊️ Entrada Manual (Cédula o Firma)")
+st.markdown(
+    "<p style='color:#a8b2d1;'>Aquí podrás escribir o firmar para ingresar manualmente.</p>",
+    unsafe_allow_html=True
 )
 
-# 📋 Lista de cédulas autorizadas (modifícala tú)
-cedulas_autorizadas = ["1234567890", "9876543210", "1122334455"]
+# Espacio visual (aún no funcional)
+canvas_placeholder = st.empty()
+canvas_placeholder.write("🟦 (Zona de escritura — próximamente interactiva)")
 
-# ✏️ Campo de texto para escribir la cédula
-cedula_ingresada = st.text_input("O escribe tu cédula manualmente:")
-
-if st.button("Verificar cédula"):
-    if cedula_ingresada in cedulas_autorizadas:
-        st.success(f"✅ Cédula {cedula_ingresada} reconocida. Acceso permitido.")
-        enviar_mqtt("ON", 100)
-    else:
-        st.error("🚫 Cédula no registrada. Acceso denegado.")
-        enviar_mqtt("OFF", 0)
-
+# -------------------------------
+# PIE DE PÁGINA
+# -------------------------------
 st.markdown("---")
 st.markdown(
-    "<p style='text-align:center; color:#9adfff;'>Sistema de acceso inteligente v2.0 — Reconocimiento facial y táctil.<br>Desarrollado por Santiago Velásquez.</p>",
-    unsafe_allow_html=True,
+    "<p style='text-align:center; color:#64ffda; font-size:13px;'>"
+    "Sistema desarrollado por <b>Santiago Velásquez</b> — Integración Facial + IoT"
+    "</p>",
+    unsafe_allow_html=True
 )
