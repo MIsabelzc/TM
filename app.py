@@ -4,6 +4,7 @@ import numpy as np
 #from PIL import Image
 from PIL import Image as Image, ImageOps as ImagOps
 from keras.models import load_model
+from streamlit_drawable_canvas import st_canvas
 
 import platform
 
