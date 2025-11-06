@@ -1,4 +1,3 @@
-pip install --no-cache-dir streamlit-drawable-canvas
 import streamlit as st
 import cv2
 import numpy as np
