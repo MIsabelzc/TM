@@ -1,9 +1,7 @@
-streamlit==1.38.0
-streamlit-drawable-canvas
-tensorflow==2.12.0
-keras
+streamlit
+numpy
 opencv-python-headless
 pillow
-numpy
+tensorflow==2.12
+keras
 paho-mqtt
-matplotlib
