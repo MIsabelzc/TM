@@ -17,8 +17,6 @@ st.title("Reconocimiento de Imágenes")
 #st.write("Versión de Python:", platform.python_version())
 image = Image.open('OIG5.jpg')
 st.image(image, width=350)
-with st.sidebar:
-    st.subheader("Usando un modelo entrenado en teachable Machine puedes Usarlo en esta app para identificar")
 img_file_buffer = st.camera_input("Toma una Foto")
 
 if img_file_buffer is not None:
@@ -41,10 +39,10 @@ if img_file_buffer is not None:
     prediction = model.predict(data)
     print(prediction)
     if prediction[0][0]>0.7:
-      st.header('Isabel, con Probabilidad: '+str( prediction[0][0]) )
+      st.header('Bienvenida Isabel '+str( prediction[0][0]) )
     if prediction[0][1]>0.7:
-      st.header('Santiago, con Probabilidad: '+str( prediction[0][1]))
+      st.header('Bienvenido Santiago '+str( prediction[0][1]))
     if prediction[0][2]>0.7:
-      st.header('No reconocido, con Probabilidad: '+str( prediction[0][2]))
+      st.header('No reconocido, intente de nuevo. con Probabilidad: '+str( prediction[0][2]))
 
 
