@@ -5,7 +5,6 @@ from PIL import Image
 from keras.models import load_model
 import paho.mqtt.client as mqtt
 import json
-import re
 
 # -------------------------------
 # CONFIGURACIÓN MQTT
@@ -30,14 +29,39 @@ st.set_page_config(page_title="Acceso Facial Inteligente", layout="centered")
 
 st.markdown("""
     <style>
-    body { background-color: #0a192f; color: white; font-family: 'Segoe UI', sans-serif; }
-    .title { text-align: center; color: #64ffda; font-size: 2.5em; margin-top: 20px; margin-bottom: 10px; font-weight: 700; }
-    .subtitle { text-align: center; color: #ccd6f6; font-size: 1.1em; margin-bottom: 40px; }
-    .welcome { text-align: center; font-size: 2em; color: #64ffda; font-weight: bold; margin-top: 30px; }
-    .subtext { text-align: center; font-size: 1.2em; color: #a8b2d1; margin-top: -10px; margin-bottom: 30px; }
-    .num-btn { background-color: #64ffda; color: #0a192f; border-radius: 12px; font-size: 1.5em; font-weight: bold; height: 70px; width: 100%; border: none; cursor: pointer; transition: 0.2s; }
-    .num-btn:hover { background-color: #52e0c4; transform: scale(1.05); }
-    .display-box { background-color: #112240; color: #64ffda; text-align: center; font-size: 1.5em; padding: 15px; border-radius: 10px; margin-bottom: 15px; letter-spacing: 3px; }
+    body {
+        background-color: #0a192f;
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .title {
+        text-align: center;
+        color: #64ffda;
+        font-size: 2.5em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    .subtitle {
+        text-align: center;
+        color: #ccd6f6;
+        font-size: 1.1em;
+        margin-bottom: 40px;
+    }
+    .welcome {
+        text-align: center;
+        font-size: 2em;
+        color: #64ffda;
+        font-weight: bold;
+        margin-top: 30px;
+    }
+    .subtext {
+        text-align: center;
+        font-size: 1.2em;
+        color: #a8b2d1;
+        margin-top: -10px;
+        margin-bottom: 30px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -45,32 +69,18 @@ st.markdown("""
 # ENCABEZADO
 # -------------------------------
 st.markdown("<div class='title'>🔒 Sistema de Acceso Facial</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Reconocimiento de rostro con control IoT</div>", unsafe_allow_html=True)
-
-# -------------------------------
-# CARGA DEL MODELO
-# -------------------------------
-# Nota: si prefieres no cargar el modelo hasta activar la cámara,
-# puedes mover esta carga dentro del bloque de cámara.
-model = load_model('keras_model.h5')
-data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+st.markdown("<div class='subtitle'>Reconocimiento de rostro y acceso con cédula</div>", unsafe_allow_html=True)
 
 # -------------------------------
 # BOTÓN PARA ACTIVAR CÁMARA
 # -------------------------------
-if "camara_activada" not in st.session_state:
-    st.session_state.camara_activada = False
+activar_camara = st.button("📸 Entrar con reconocimiento facial")
 
-if not st.session_state.camara_activada:
-    if st.button("📷 Entrar con reconocimiento facial"):
-        st.session_state.camara_activada = True
-        st.experimental_rerun()
+if activar_camara:
+    model = load_model('keras_model.h5')
+    data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
-# -------------------------------
-# CAPTURA DE ROSTRO (solo si se activa)
-# -------------------------------
-if st.session_state.camara_activada:
-    st.subheader("📸 Escanear Rostro")
+    st.subheader("📷 Escanear Rostro")
     img_file_buffer = st.camera_input("Usa la cámara para validar tu identidad")
 
     if img_file_buffer is not None:
@@ -98,33 +108,58 @@ if st.session_state.camara_activada:
             st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
             enviar_mqtt("OFF", 0)
 
-    if st.button("⬅️ Volver al panel principal"):
-        st.session_state.camara_activada = False
-        st.experimental_rerun()
-
 # -------------------------------
 # 🔢 PANEL DE CÉDULA CON BOTONES
 # -------------------------------
 st.markdown("---")
 st.subheader("💳 Ingreso por Cédula (teclado táctil)")
 
-# Base de datos simulada (tu actualización)
+st.markdown("""
+    <style>
+    .num-btn {
+        background-color: #64ffda;
+        color: #0a192f;
+        border-radius: 12px;
+        font-size: 1.5em;
+        font-weight: bold;
+        height: 70px;
+        width: 100%;
+        border: none;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .num-btn:hover {
+        background-color: #52e0c4;
+        transform: scale(1.05);
+    }
+    .display-box {
+        background-color: #112240;
+        color: #64ffda;
+        text-align: center;
+        font-size: 1.5em;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        letter-spacing: 3px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Base de datos de cédulas (numéricas)
 base_datos_cedulas = {
-    "1025761205": "Santiago Velásquez",
-    "1007654321": "Isabel Gómez",
-    "10": "Invitado"
+    1025761205: "Santiago Velásquez",
+    1007654321: "Isabel Gómez",
+    10: "Invitado"
 }
 
-# Estado para cédula y mensaje
-if "cedula_input" not in st.session_state:
-    st.session_state.cedula_input = ""
-if "mensaje" not in st.session_state:
-    st.session_state.mensaje = ""
+# Estado de la cédula digitada
+if "cedula_actual" not in st.session_state:
+    st.session_state.cedula_actual = ""
 
-# Mostrar cédula (valor visible)
-st.markdown(f"<div class='display-box'>{st.session_state.cedula_input or '----'}</div>", unsafe_allow_html=True)
+# Mostrar lo digitado
+st.markdown(f"<div class='display-box'>{st.session_state.cedula_actual or '----'}</div>", unsafe_allow_html=True)
 
-# Teclado
+# Teclado numérico
 numeros = [
     ["1", "2", "3"],
     ["4", "5", "6"],
@@ -132,37 +167,38 @@ numeros = [
     ["Borrar", "0", "Verificar"]
 ]
 
-for fila_i, fila in enumerate(numeros):
+for fila in numeros:
     cols = st.columns(3)
     for i, num in enumerate(fila):
-        # key única por botón
-        key_name = f"btn_{fila_i}_{i}_{num}"
-        if cols[i].button(num, key=key_name, use_container_width=True):
+        if cols[i].button(num, key=num, use_container_width=True):
             if num == "Borrar":
-                st.session_state.cedula_input = st.session_state.cedula_input[:-1]
+                st.session_state.cedula_actual = st.session_state.cedula_actual[:-1]
             elif num == "Verificar":
-                cedula = st.session_state.cedula_input or ""
-                # normalizar: quitar espacios y mantener sólo dígitos
-                cedula = re.sub(r"\D", "", cedula.strip())
-                # Mostrar en logs para depuración (opcional)
-                st.write(f"Debug: comparando -> '{cedula}'")
-                if cedula in base_datos_cedulas:
-                    nombre = base_datos_cedulas[cedula]
-                    st.session_state.mensaje = f"✅ Bienvenido {nombre}. Acceso autorizado."
-                    enviar_mqtt("ON", 80)
-                else:
-                    st.session_state.mensaje = "🚫 Cédula no registrada. Contacta al administrador."
-                    enviar_mqtt("OFF", 0)
-                st.session_state.cedula_input = ""
-            else:
-                if len(st.session_state.cedula_input) < 15:
-                    st.session_state.cedula_input += num
-            # no forzamos rerun aquí; Streamlit re-ejecuta automáticamente
+                cedula_str = st.session_state.cedula_actual
 
-# Mostrar resultado
-if st.session_state.mensaje:
-    color = "#64ffda" if "Bienvenido" in st.session_state.mensaje else "#ff6b6b"
-    st.markdown(f"<div class='welcome' style='color:{color};'>{st.session_state.mensaje}</div>", unsafe_allow_html=True)
+                if cedula_str.isdigit():
+                    cedula_num = int(cedula_str)
+                    if cedula_num in base_datos_cedulas:
+                        nombre = base_datos_cedulas[cedula_num]
+                        st.markdown(
+                            f"<div class='welcome'>👋 Bienvenido {nombre}</div>"
+                            "<div class='subtext'>Acceso autorizado</div>",
+                            unsafe_allow_html=True
+                        )
+                        enviar_mqtt("ON", 80)
+                    else:
+                        st.markdown(
+                            "<div class='welcome' style='color:#ff6b6b;'>🚫 Cédula no registrada</div>"
+                            "<div class='subtext'>Contacta al administrador</div>",
+                            unsafe_allow_html=True
+                        )
+                        enviar_mqtt("OFF", 0)
+                else:
+                    st.warning("⚠️ La cédula solo debe contener números.")
+                st.session_state.cedula_actual = ""
+            else:
+                if len(st.session_state.cedula_actual) < 10:
+                    st.session_state.cedula_actual += num
 
 # -------------------------------
 # PIE DE PÁGINA
