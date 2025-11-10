@@ -161,7 +161,7 @@ st.subheader("💳 Ingreso por Cédula (teclado táctil)")
 base_datos_cedulas = {
     "1025761205": "Santiago Velásquez",
     "1007654321": "Isabel Gómez",
-    "1010101010": "Invitado"
+    "10": "Invitado"
 }
 
 # Estado para cédula
