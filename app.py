@@ -5,7 +5,7 @@ from PIL import Image
 from keras.models import load_model
 import paho.mqtt.client as mqtt
 import json
-import platform
+import re
 
 # -------------------------------
 # CONFIGURACIÓN MQTT
@@ -30,65 +30,14 @@ st.set_page_config(page_title="Acceso Facial Inteligente", layout="centered")
 
 st.markdown("""
     <style>
-    body {
-        background-color: #0a192f;
-        color: white;
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .title {
-        text-align: center;
-        color: #64ffda;
-        font-size: 2.5em;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        font-weight: 700;
-    }
-    .subtitle {
-        text-align: center;
-        color: #ccd6f6;
-        font-size: 1.1em;
-        margin-bottom: 40px;
-    }
-    .welcome {
-        text-align: center;
-        font-size: 2em;
-        color: #64ffda;
-        font-weight: bold;
-        margin-top: 30px;
-    }
-    .subtext {
-        text-align: center;
-        font-size: 1.2em;
-        color: #a8b2d1;
-        margin-top: -10px;
-        margin-bottom: 30px;
-    }
-    .num-btn {
-        background-color: #64ffda;
-        color: #0a192f;
-        border-radius: 12px;
-        font-size: 1.5em;
-        font-weight: bold;
-        height: 70px;
-        width: 100%;
-        border: none;
-        cursor: pointer;
-        transition: 0.2s;
-    }
-    .num-btn:hover {
-        background-color: #52e0c4;
-        transform: scale(1.05);
-    }
-    .display-box {
-        background-color: #112240;
-        color: #64ffda;
-        text-align: center;
-        font-size: 1.5em;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 15px;
-        letter-spacing: 3px;
-    }
+    body { background-color: #0a192f; color: white; font-family: 'Segoe UI', sans-serif; }
+    .title { text-align: center; color: #64ffda; font-size: 2.5em; margin-top: 20px; margin-bottom: 10px; font-weight: 700; }
+    .subtitle { text-align: center; color: #ccd6f6; font-size: 1.1em; margin-bottom: 40px; }
+    .welcome { text-align: center; font-size: 2em; color: #64ffda; font-weight: bold; margin-top: 30px; }
+    .subtext { text-align: center; font-size: 1.2em; color: #a8b2d1; margin-top: -10px; margin-bottom: 30px; }
+    .num-btn { background-color: #64ffda; color: #0a192f; border-radius: 12px; font-size: 1.5em; font-weight: bold; height: 70px; width: 100%; border: none; cursor: pointer; transition: 0.2s; }
+    .num-btn:hover { background-color: #52e0c4; transform: scale(1.05); }
+    .display-box { background-color: #112240; color: #64ffda; text-align: center; font-size: 1.5em; padding: 15px; border-radius: 10px; margin-bottom: 15px; letter-spacing: 3px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -101,6 +50,8 @@ st.markdown("<div class='subtitle'>Reconocimiento de rostro con control IoT</div
 # -------------------------------
 # CARGA DEL MODELO
 # -------------------------------
+# Nota: si prefieres no cargar el modelo hasta activar la cámara,
+# puedes mover esta carga dentro del bloque de cámara.
 model = load_model('keras_model.h5')
 data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
@@ -113,7 +64,7 @@ if "camara_activada" not in st.session_state:
 if not st.session_state.camara_activada:
     if st.button("📷 Entrar con reconocimiento facial"):
         st.session_state.camara_activada = True
-        st.rerun()
+        st.experimental_rerun()
 
 # -------------------------------
 # CAPTURA DE ROSTRO (solo si se activa)
@@ -149,7 +100,7 @@ if st.session_state.camara_activada:
 
     if st.button("⬅️ Volver al panel principal"):
         st.session_state.camara_activada = False
-        st.rerun()
+        st.experimental_rerun()
 
 # -------------------------------
 # 🔢 PANEL DE CÉDULA CON BOTONES
@@ -157,23 +108,23 @@ if st.session_state.camara_activada:
 st.markdown("---")
 st.subheader("💳 Ingreso por Cédula (teclado táctil)")
 
-# Base de datos simulada
+# Base de datos simulada (tu actualización)
 base_datos_cedulas = {
     "1025761205": "Santiago Velásquez",
     "1007654321": "Isabel Gómez",
     "10": "Invitado"
 }
 
-# Estado para cédula
+# Estado para cédula y mensaje
 if "cedula_input" not in st.session_state:
     st.session_state.cedula_input = ""
 if "mensaje" not in st.session_state:
     st.session_state.mensaje = ""
 
-# Mostrar cédula
+# Mostrar cédula (valor visible)
 st.markdown(f"<div class='display-box'>{st.session_state.cedula_input or '----'}</div>", unsafe_allow_html=True)
 
-# Botones del teclado
+# Teclado
 numeros = [
     ["1", "2", "3"],
     ["4", "5", "6"],
@@ -181,14 +132,20 @@ numeros = [
     ["Borrar", "0", "Verificar"]
 ]
 
-for fila in numeros:
+for fila_i, fila in enumerate(numeros):
     cols = st.columns(3)
     for i, num in enumerate(fila):
-        if cols[i].button(num, key=num, use_container_width=True):
+        # key única por botón
+        key_name = f"btn_{fila_i}_{i}_{num}"
+        if cols[i].button(num, key=key_name, use_container_width=True):
             if num == "Borrar":
                 st.session_state.cedula_input = st.session_state.cedula_input[:-1]
             elif num == "Verificar":
-                cedula = st.session_state.cedula_input
+                cedula = st.session_state.cedula_input or ""
+                # normalizar: quitar espacios y mantener sólo dígitos
+                cedula = re.sub(r"\D", "", cedula.strip())
+                # Mostrar en logs para depuración (opcional)
+                st.write(f"Debug: comparando -> '{cedula}'")
                 if cedula in base_datos_cedulas:
                     nombre = base_datos_cedulas[cedula]
                     st.session_state.mensaje = f"✅ Bienvenido {nombre}. Acceso autorizado."
@@ -198,9 +155,9 @@ for fila in numeros:
                     enviar_mqtt("OFF", 0)
                 st.session_state.cedula_input = ""
             else:
-                if len(st.session_state.cedula_input) < 10:
+                if len(st.session_state.cedula_input) < 15:
                     st.session_state.cedula_input += num
-            st.rerun()
+            # no forzamos rerun aquí; Streamlit re-ejecuta automáticamente
 
 # Mostrar resultado
 if st.session_state.mensaje:
