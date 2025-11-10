@@ -125,6 +125,74 @@ canvas_placeholder = st.empty()
 canvas_placeholder.write("🟦 (Zona de escritura — próximamente interactiva)")
 
 # -------------------------------
+# 🧮 ACCESO POR CÉDULA (Panel Manual)
+# -------------------------------
+st.markdown("---")
+st.subheader("💳 Acceso Manual por Cédula")
+
+st.markdown("""
+    <style>
+    .button-container {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 30px;
+        margin-bottom: 20px;
+    }
+    .big-button {
+        background-color: #64ffda;
+        color: #0a192f;
+        border-radius: 15px;
+        padding: 25px 50px;
+        font-size: 1.5em;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .big-button:hover {
+        background-color: #52e0c4;
+        transform: scale(1.05);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Simulamos base de datos de cédulas válidas
+base_datos_cedulas = {
+    "1001234567": "Santiago Velásquez",
+    "1007654321": "Isabel Gómez",
+    "1010101010": "Invitado"
+}
+
+# Campo para escribir la cédula
+cedula = st.text_input("🆔 Digita tu número de cédula", placeholder="Ej: 1001234567")
+
+# Panel de botones grandes
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("✅ Verificar Cédula", use_container_width=True):
+        if cedula in base_datos_cedulas:
+            nombre = base_datos_cedulas[cedula]
+            st.markdown(
+                f"<div class='welcome'>👋 Bienvenido {nombre}</div>"
+                "<div class='subtext'>Acceso autorizado</div>",
+                unsafe_allow_html=True
+            )
+            enviar_mqtt("ON", 80)
+        else:
+            st.markdown(
+                "<div class='welcome' style='color:#ff6b6b;'>🚫 Cédula no registrada</div>"
+                "<div class='subtext'>Contacta al administrador</div>",
+                unsafe_allow_html=True
+            )
+            enviar_mqtt("OFF", 0)
+
+with col2:
+    if st.button("❌ Cancelar", use_container_width=True):
+        st.warning("Operación cancelada. No se realizó ningún envío MQTT.")
+
+
+# -------------------------------
 # PIE DE PÁGINA
 # -------------------------------
 st.markdown("---")
