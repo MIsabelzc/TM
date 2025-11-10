@@ -18,7 +18,7 @@ topic = "santiagoV/cmqtt_a"
 def conectar_mqtt():
     """Conecta al broker MQTT y devuelve el cliente."""
     print("🔌 Iniciando conexión MQTT...")
-    client = mqtt.Client(client_id="streamlit_face_access_app_v2", clean_session=True)
+    client = mqtt.Client(client_id="streamlit_face_access_app_v3", clean_session=True)
     try:
         client.connect(broker, port, 60)
         client.loop_start() 
@@ -97,7 +97,7 @@ st.markdown("""
         margin-top: -10px;
         margin-bottom: 30px;
     }
-    .num-btn { /* Tu CSS de botones es perfecto, no se toca */
+    .num-btn { 
         background-color: #64ffda;
         color: #0a192f;
         border-radius: 12px;
@@ -140,6 +140,10 @@ if "camara_activa" not in st.session_state:
 
 if st.button("📸 Entrar con reconocimiento facial"):
     st.session_state.camara_activa = True
+    # Limpiar mensaje de cédula si estaba activo
+    if "auth_message" in st.session_state:
+        st.session_state.auth_message = ""
+
 
 if st.session_state.camara_activa and model is not None:
     data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
@@ -163,6 +167,7 @@ if st.session_state.camara_activa and model is not None:
         prob_santiago = float(prediction[0][1])
         prob_desconocido = float(prediction[0][2])
 
+        # Creamos el mensaje de bienvenida o error
         if prob_santiago > 0.7:
             st.markdown("<div class='welcome'>👋 Bienvenido Santiago</div>", unsafe_allow_html=True)
             st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
@@ -176,11 +181,12 @@ if st.session_state.camara_activa and model is not None:
             st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
             enviar_mqtt("OFF", 0)
 
+        # Desactivamos la cámara y usamos st.rerun() SÓLO AQUÍ para ocultar la cámara
         st.session_state.camara_activa = False
         st.rerun()
 
 # -------------------------------
-# 🔢 PANEL DE CÉDULA CON BOTONES (FLUJO 2 CORREGIDO)
+# 🔢 PANEL DE CÉDULA CON BOTONES (FLUJO 2 CORREGIDO - LÓGICA V3)
 # -------------------------------
 st.markdown("---")
 st.subheader("💳 Ingreso por Cédula (teclado táctil)")
@@ -192,7 +198,7 @@ base_datos_cedulas = {
     10: "Invitado"
 }
 
-# --- SOLUCIÓN: Inicializar estados para el mensaje ---
+# --- SOLUCIÓN V3: Inicializar estados para el mensaje ---
 if "cedula_actual" not in st.session_state:
     st.session_state.cedula_actual = ""
 if "auth_message" not in st.session_state:
@@ -224,23 +230,19 @@ for fila in numeros:
             elif num == "Verificar":
                 cedula_str = st.session_state.cedula_actual
                 
-                # Comprobar que no esté vacío ANTES de isdigit()
                 if cedula_str.isdigit() and cedula_str: 
                     cedula_num = int(cedula_str)
                     
                     if cedula_num in base_datos_cedulas:
                         nombre = base_datos_cedulas[cedula_num]
-                        # Guardar mensaje en el estado
                         st.session_state.auth_message = f"👋 Bienvenido {nombre}"
                         st.session_state.auth_success = True
                         enviar_mqtt("ON", 80)
                     else:
-                        # Guardar mensaje en el estado
                         st.session_state.auth_message = "🚫 Cédula no registrada"
                         st.session_state.auth_success = False
                         enviar_mqtt("OFF", 0)
                 else:
-                    # Guardar mensaje en el estado
                     st.session_state.auth_message = "⚠️ La cédula solo debe contener números."
                     st.session_state.auth_success = False
                 
@@ -251,11 +253,15 @@ for fila in numeros:
                 if len(st.session_state.cedula_actual) < 10:
                     st.session_state.cedula_actual += num
             
-            # Forzar rerun para mostrar cambios
-            st.rerun()
+            # --- CORRECCIÓN CLAVE ---
+            # Se eliminaron todas las llamadas a st.rerun() de aquí.
+            # El script se recargará naturalmente al finalizar este bloque if,
+            # lo que actualizará el 'display_box' y mostrará el 'auth_message'
+            # de forma persistente.
 
 # --- SOLUCIÓN: Mostrar el mensaje de estado persistente ---
-# Este bloque está FUERA del bucle de botones
+# Este bloque se ejecuta en CADA recarga.
+# Leerá el estado guardado en st.session_state y lo mostrará.
 if st.session_state.auth_message:
     if st.session_state.auth_success:
         st.markdown(
@@ -264,7 +270,6 @@ if st.session_state.auth_message:
             unsafe_allow_html=True
         )
     else:
-        # Reutiliza tus clases CSS para mensajes de error
         st.markdown(
             f"<div class='welcome' style='color:#ff6b6b;'>{st.session_state.auth_message}</div>"
             "<div class='subtext'>Por favor, intenta nuevamente.</div>",
