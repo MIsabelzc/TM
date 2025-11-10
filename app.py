@@ -1,4 +1,27 @@
+import streamlit as st
+import cv2
+import numpy as np
+from PIL import Image
+from keras.models import load_model
+import paho.mqtt.client as mqtt
+import json
 
+# -------------------------------
+# CONFIGURACIÓN MQTT
+# -------------------------------
+broker = "broker.mqttdashboard.com"
+port = 1883
+topic = "santiagoV/cmqtt_a"
+
+# --- MEJORA 1: Cachear el cliente MQTT ---
+@st.cache_resource
+def conectar_mqtt():
+    """Conecta al broker MQTT y devuelve el cliente."""
+    print("🔌 Iniciando conexión MQTT...")
+    client = mqtt.Client(client_id="streamlit_face_access_app_v2", clean_session=True)
+    try:
+        client.connect(broker, port, 60)
+        client.loop_start() 
         print("✅ Conectado al broker MQTT.")
         return client
     except Exception as e:
