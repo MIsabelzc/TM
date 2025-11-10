@@ -1,12 +1,7 @@
 import streamlit as st
 import cv2
 import numpy as np
-from PIL import Image
-from keras.models import load_model
-import paho.mqtt.client as mqtt
-import json
-
-# -------------------------------
+------------
 # CONFIGURACIÓN MQTT
 # -------------------------------
 broker = "broker.mqttdashboard.com"
