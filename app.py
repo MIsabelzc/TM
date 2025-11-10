@@ -167,21 +167,25 @@ if st.session_state.camara_activa and model is not None:
         prob_santiago = float(prediction[0][1])
         prob_desconocido = float(prediction[0][2])
 
-        # Creamos el mensaje de bienvenida o error
+        # --- CORRECCIÓN ---
+        # No mostramos el mensaje aquí, lo guardamos en el estado de la sesión.
+        # El bloque de "Mostrar el mensaje de estado persistente" al final del script
+        # se encargará de mostrarlo.
         if prob_santiago > 0.7:
-            st.markdown("<div class='welcome'>👋 Bienvenido Santiago</div>", unsafe_allow_html=True)
-            st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
+            st.session_state.auth_message = "👋 Bienvenido Santiago"
+            st.session_state.auth_success = True
             enviar_mqtt("ON", 100)
         elif prob_isabel > 0.7:
-            st.markdown("<div class='welcome'>👋 Bienvenida Isabel</div>", unsafe_allow_html=True)
-            st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
+            st.session_state.auth_message = "👋 Bienvenida Isabel"
+            st.session_state.auth_success = True
             enviar_mqtt("ON", 50)
         else:
-            st.markdown("<div class='welcome' style='color:#ff6b6b;'>🚫 No reconocido</div>", unsafe_allow_html=True)
-            st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
+            st.session_state.auth_message = "🚫 No reconocido"
+            st.session_state.auth_success = False
             enviar_mqtt("OFF", 0)
 
-        # Desactivamos la cámara y usamos st.rerun() SÓLO AQUÍ para ocultar la cámara
+        # Desactivamos la cámara y usamos st.rerun() para ocultar la cámara
+        # y forzar la recarga que mostrará el mensaje guardado.
         st.session_state.camara_activa = False
         st.rerun()
 
