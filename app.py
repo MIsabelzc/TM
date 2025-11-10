@@ -28,7 +28,6 @@ def enviar_mqtt(act, analog):
 # -------------------------------
 st.set_page_config(page_title="Acceso Facial Inteligente", layout="centered")
 
-# Fondo azul suave y estilo del texto
 st.markdown("""
     <style>
     body {
@@ -64,61 +63,6 @@ st.markdown("""
         margin-top: -10px;
         margin-bottom: 30px;
     }
-    </style>
-""", unsafe_allow_html=True)
-
-# -------------------------------
-# ENCABEZADO
-# -------------------------------
-st.markdown("<div class='title'>🔒 Sistema de Acceso Facial</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Reconocimiento de rostro con control IoT</div>", unsafe_allow_html=True)
-
-# -------------------------------
-# CARGA DEL MODELO
-# -------------------------------
-model = load_model('keras_model.h5')
-data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
-
-# -------------------------------
-# CAPTURA DE ROSTRO
-# -------------------------------
-st.subheader("📷 Escanear Rostro")
-img_file_buffer = st.camera_input("Usa la cámara para validar tu identidad")
-
-if img_file_buffer is not None:
-    img = Image.open(img_file_buffer)
-    img = img.resize((224, 224))
-    img_array = np.array(img)
-    normalized_image_array = (img_array.astype(np.float32) / 127.0) - 1
-    data[0] = normalized_image_array
-
-    prediction = model.predict(data)
-    prob_isabel = float(prediction[0][0])
-    prob_santiago = float(prediction[0][1])
-    prob_desconocido = float(prediction[0][2])
-
-    if prob_santiago > 0.7:
-        st.markdown("<div class='welcome'>👋 Bienvenido Santiago</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
-        enviar_mqtt("ON", 100)
-    elif prob_isabel > 0.7:
-        st.markdown("<div class='welcome'>👋 Bienvenida Isabel</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
-        enviar_mqtt("ON", 50)
-    else:
-        st.markdown("<div class='welcome' style='color:#ff6b6b;'>🚫 No reconocido</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
-        enviar_mqtt("OFF", 0)
-
-# -------------------------------
-# 🔢 PANEL DE CÉDULA CON BOTONES
-# -------------------------------
-st.markdown("---")
-st.subheader("💳 Ingreso por Cédula (teclado táctil)")
-
-# Estilos visuales
-st.markdown("""
-    <style>
     .num-btn {
         background-color: #64ffda;
         color: #0a192f;
@@ -148,21 +92,88 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Simulamos base de datos de cédulas válidas
+# -------------------------------
+# ENCABEZADO
+# -------------------------------
+st.markdown("<div class='title'>🔒 Sistema de Acceso Facial</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Reconocimiento de rostro con control IoT</div>", unsafe_allow_html=True)
+
+# -------------------------------
+# CARGA DEL MODELO
+# -------------------------------
+model = load_model('keras_model.h5')
+data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+
+# -------------------------------
+# BOTÓN PARA ACTIVAR CÁMARA
+# -------------------------------
+if "camara_activada" not in st.session_state:
+    st.session_state.camara_activada = False
+
+if not st.session_state.camara_activada:
+    if st.button("📷 Entrar con reconocimiento facial"):
+        st.session_state.camara_activada = True
+        st.rerun()
+
+# -------------------------------
+# CAPTURA DE ROSTRO (solo si se activa)
+# -------------------------------
+if st.session_state.camara_activada:
+    st.subheader("📸 Escanear Rostro")
+    img_file_buffer = st.camera_input("Usa la cámara para validar tu identidad")
+
+    if img_file_buffer is not None:
+        img = Image.open(img_file_buffer)
+        img = img.resize((224, 224))
+        img_array = np.array(img)
+        normalized_image_array = (img_array.astype(np.float32) / 127.0) - 1
+        data[0] = normalized_image_array
+
+        prediction = model.predict(data)
+        prob_isabel = float(prediction[0][0])
+        prob_santiago = float(prediction[0][1])
+        prob_desconocido = float(prediction[0][2])
+
+        if prob_santiago > 0.7:
+            st.markdown("<div class='welcome'>👋 Bienvenido Santiago</div>", unsafe_allow_html=True)
+            st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
+            enviar_mqtt("ON", 100)
+        elif prob_isabel > 0.7:
+            st.markdown("<div class='welcome'>👋 Bienvenida Isabel</div>", unsafe_allow_html=True)
+            st.markdown("<div class='subtext'>Ya puedes pasar</div>", unsafe_allow_html=True)
+            enviar_mqtt("ON", 50)
+        else:
+            st.markdown("<div class='welcome' style='color:#ff6b6b;'>🚫 No reconocido</div>", unsafe_allow_html=True)
+            st.markdown("<div class='subtext'>Intenta nuevamente</div>", unsafe_allow_html=True)
+            enviar_mqtt("OFF", 0)
+
+    if st.button("⬅️ Volver al panel principal"):
+        st.session_state.camara_activada = False
+        st.rerun()
+
+# -------------------------------
+# 🔢 PANEL DE CÉDULA CON BOTONES
+# -------------------------------
+st.markdown("---")
+st.subheader("💳 Ingreso por Cédula (teclado táctil)")
+
+# Base de datos simulada
 base_datos_cedulas = {
     "1001234567": "Santiago Velásquez",
     "1007654321": "Isabel Gómez",
     "1010101010": "Invitado"
 }
 
-# Estado para almacenar la cédula digitada
+# Estado para cédula
 if "cedula_input" not in st.session_state:
     st.session_state.cedula_input = ""
+if "mensaje" not in st.session_state:
+    st.session_state.mensaje = ""
 
-# Mostrar la cédula en pantalla
+# Mostrar cédula
 st.markdown(f"<div class='display-box'>{st.session_state.cedula_input or '----'}</div>", unsafe_allow_html=True)
 
-# Crear las filas de botones del teclado
+# Botones del teclado
 numeros = [
     ["1", "2", "3"],
     ["4", "5", "6"],
@@ -170,7 +181,6 @@ numeros = [
     ["Borrar", "0", "Verificar"]
 ]
 
-# Renderizar el teclado
 for fila in numeros:
     cols = st.columns(3)
     for i, num in enumerate(fila):
@@ -181,24 +191,21 @@ for fila in numeros:
                 cedula = st.session_state.cedula_input
                 if cedula in base_datos_cedulas:
                     nombre = base_datos_cedulas[cedula]
-                    st.markdown(
-                        f"<div class='welcome'>👋 Bienvenido {nombre}</div>"
-                        "<div class='subtext'>Acceso autorizado</div>",
-                        unsafe_allow_html=True
-                    )
+                    st.session_state.mensaje = f"✅ Bienvenido {nombre}. Acceso autorizado."
                     enviar_mqtt("ON", 80)
                 else:
-                    st.markdown(
-                        "<div class='welcome' style='color:#ff6b6b;'>🚫 Cédula no registrada</div>"
-                        "<div class='subtext'>Contacta al administrador</div>",
-                        unsafe_allow_html=True
-                    )
+                    st.session_state.mensaje = "🚫 Cédula no registrada. Contacta al administrador."
                     enviar_mqtt("OFF", 0)
                 st.session_state.cedula_input = ""
             else:
-                if len(st.session_state.cedula_input) < 10:  # límite de 10 dígitos
+                if len(st.session_state.cedula_input) < 10:
                     st.session_state.cedula_input += num
+            st.rerun()
 
+# Mostrar resultado
+if st.session_state.mensaje:
+    color = "#64ffda" if "Bienvenido" in st.session_state.mensaje else "#ff6b6b"
+    st.markdown(f"<div class='welcome' style='color:{color};'>{st.session_state.mensaje}</div>", unsafe_allow_html=True)
 
 # -------------------------------
 # PIE DE PÁGINA
