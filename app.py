@@ -111,48 +111,39 @@ if img_file_buffer is not None:
         enviar_mqtt("OFF", 0)
 
 # -------------------------------
-# ESPACIO PARA ENTRADA MANUAL (futura cédula)
+# 🔢 PANEL DE CÉDULA CON BOTONES
 # -------------------------------
 st.markdown("---")
-st.subheader("🖊️ Entrada Manual (Cédula o Firma)")
-st.markdown(
-    "<p style='color:#a8b2d1;'>Aquí podrás escribir o firmar para ingresar manualmente.</p>",
-    unsafe_allow_html=True
-)
+st.subheader("💳 Ingreso por Cédula (teclado táctil)")
 
-# Espacio visual (aún no funcional)
-canvas_placeholder = st.empty()
-canvas_placeholder.write("🟦 (Zona de escritura — próximamente interactiva)")
-
-# -------------------------------
-# 🧮 ACCESO POR CÉDULA (Panel Manual)
-# -------------------------------
-st.markdown("---")
-st.subheader("💳 Acceso Manual por Cédula")
-
+# Estilos visuales
 st.markdown("""
     <style>
-    .button-container {
-        display: flex;
-        justify-content: center;
-        gap: 40px;
-        margin-top: 30px;
-        margin-bottom: 20px;
-    }
-    .big-button {
+    .num-btn {
         background-color: #64ffda;
         color: #0a192f;
-        border-radius: 15px;
-        padding: 25px 50px;
+        border-radius: 12px;
         font-size: 1.5em;
         font-weight: bold;
+        height: 70px;
+        width: 100%;
         border: none;
         cursor: pointer;
         transition: 0.2s;
     }
-    .big-button:hover {
+    .num-btn:hover {
         background-color: #52e0c4;
         transform: scale(1.05);
+    }
+    .display-box {
+        background-color: #112240;
+        color: #64ffda;
+        text-align: center;
+        font-size: 1.5em;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        letter-spacing: 3px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -164,32 +155,49 @@ base_datos_cedulas = {
     "1010101010": "Invitado"
 }
 
-# Campo para escribir la cédula
-cedula = st.text_input("🆔 Digita tu número de cédula", placeholder="Ej: 1001234567")
+# Estado para almacenar la cédula digitada
+if "cedula_input" not in st.session_state:
+    st.session_state.cedula_input = ""
 
-# Panel de botones grandes
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("✅ Verificar Cédula", use_container_width=True):
-        if cedula in base_datos_cedulas:
-            nombre = base_datos_cedulas[cedula]
-            st.markdown(
-                f"<div class='welcome'>👋 Bienvenido {nombre}</div>"
-                "<div class='subtext'>Acceso autorizado</div>",
-                unsafe_allow_html=True
-            )
-            enviar_mqtt("ON", 80)
-        else:
-            st.markdown(
-                "<div class='welcome' style='color:#ff6b6b;'>🚫 Cédula no registrada</div>"
-                "<div class='subtext'>Contacta al administrador</div>",
-                unsafe_allow_html=True
-            )
-            enviar_mqtt("OFF", 0)
+# Mostrar la cédula en pantalla
+st.markdown(f"<div class='display-box'>{st.session_state.cedula_input or '----'}</div>", unsafe_allow_html=True)
 
-with col2:
-    if st.button("❌ Cancelar", use_container_width=True):
-        st.warning("Operación cancelada. No se realizó ningún envío MQTT.")
+# Crear las filas de botones del teclado
+numeros = [
+    ["1", "2", "3"],
+    ["4", "5", "6"],
+    ["7", "8", "9"],
+    ["Borrar", "0", "Verificar"]
+]
+
+# Renderizar el teclado
+for fila in numeros:
+    cols = st.columns(3)
+    for i, num in enumerate(fila):
+        if cols[i].button(num, key=num, use_container_width=True):
+            if num == "Borrar":
+                st.session_state.cedula_input = st.session_state.cedula_input[:-1]
+            elif num == "Verificar":
+                cedula = st.session_state.cedula_input
+                if cedula in base_datos_cedulas:
+                    nombre = base_datos_cedulas[cedula]
+                    st.markdown(
+                        f"<div class='welcome'>👋 Bienvenido {nombre}</div>"
+                        "<div class='subtext'>Acceso autorizado</div>",
+                        unsafe_allow_html=True
+                    )
+                    enviar_mqtt("ON", 80)
+                else:
+                    st.markdown(
+                        "<div class='welcome' style='color:#ff6b6b;'>🚫 Cédula no registrada</div>"
+                        "<div class='subtext'>Contacta al administrador</div>",
+                        unsafe_allow_html=True
+                    )
+                    enviar_mqtt("OFF", 0)
+                st.session_state.cedula_input = ""
+            else:
+                if len(st.session_state.cedula_input) < 10:  # límite de 10 dígitos
+                    st.session_state.cedula_input += num
 
 
 # -------------------------------
