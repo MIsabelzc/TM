@@ -159,7 +159,7 @@ st.subheader("💳 Ingreso por Cédula (teclado táctil)")
 
 # Base de datos simulada
 base_datos_cedulas = {
-    "1001234567": "Santiago Velásquez",
+    "1025761205": "Santiago Velásquez",
     "1007654321": "Isabel Gómez",
     "1010101010": "Invitado"
 }
